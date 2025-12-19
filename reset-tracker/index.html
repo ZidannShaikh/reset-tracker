@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#22c55e">
+
+    <title>Reset Tracker</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- GSAP for Animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { 50: '#ecfdf5', 100: '#d1fae5', 500: '#10b981', 600: '#059669', 900: '#064e3b' },
+                        dark: { 800: '#1e293b', 900: '#0f172a', 950: '#020617' }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { -webkit-tap-highlight-color: transparent; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .dark ::-webkit-scrollbar-thumb { background: #334155; }
+
+        /* Breathing Animation Elements */
+        .circle-container { position: relative; width: 260px; height: 260px; display: flex; align-items: center; justify-content: center; }
+        .breath-circle { position: absolute; border-radius: 50%; opacity: 0.3; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-dark-950 dark:text-slate-100 transition-colors duration-300 font-sans pb-24 overflow-x-hidden selection:bg-brand-500 selection:text-white">
+
+    <!-- APP CONTAINER -->
+    <div id="app" class="max-w-md mx-auto min-h-screen relative px-5 pt-6">
+
+        <!-- HEADER -->
+        <header class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight" id="page-title">Dashboard</h1>
+                <p class="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wide" id="current-date">...</p>
+            </div>
+            <div class="bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-500 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
+                <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span> Active
+            </div>
+        </header>
+
+        <!-- VIEWS -->
+        
+        <!-- 1. DASHBOARD -->
+        <div id="view-dashboard" class="tab-content active">
+            <!-- Streak Ring -->
+            <div class="flex justify-center py-6 mb-2">
+                <div class="relative w-64 h-64 flex items-center justify-center">
+                    <!-- SVG Ring -->
+                    <svg class="w-full h-full transform -rotate-90">
+                        <circle cx="128" cy="128" r="120" stroke="currentColor" stroke-width="8" fill="transparent" class="text-slate-200 dark:text-slate-800" />
+                        <circle id="progress-ring" cx="128" cy="128" r="120" stroke="currentColor" stroke-width="8" fill="transparent" stroke-linecap="round" class="text-brand-500" stroke-dasharray="753" stroke-dashoffset="753" />
+                    </svg>
+                    <div class="absolute text-center z-10 flex flex-col items-center">
+                        <span id="streak-count" class="text-7xl font-black tracking-tighter leading-none">0</span>
+                        <span class="text-slate-400 font-bold text-xs uppercase tracking-[0.2em] mt-2">Days Clean</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="bg-white dark:bg-dark-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col items-center text-center">
+                    <i class="ph-fill ph-trophy text-amber-500 text-3xl mb-2"></i>
+                    <span id="total-clean" class="text-2xl font-bold">0</span>
+                    <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Total Clean Days</span>
+                </div>
+                <div class="bg-white dark:bg-dark-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col items-center text-center">
+                    <i class="ph-fill ph-lightning text-blue-500 text-3xl mb-2"></i>
+                    <span id="total-urges" class="text-2xl font-bold">0</span>
+                    <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Urges Defeated</span>
+                </div>
+            </div>
+
+            <!-- Quote -->
+            <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg shadow-indigo-200 dark:shadow-none relative overflow-hidden">
+                <i class="ph-fill ph-quotes text-white/20 text-6xl absolute top-0 right-0 -mr-2 -mt-2"></i>
+                <p id="quote-text" class="font-serif italic text-lg leading-relaxed relative z-10">...</p>
+            </div>
+        </div>
+
+        <!-- 2. CHECK-IN -->
+        <div id="view-checkin" class="tab-content">
+            <div class="bg-white dark:bg-dark-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 space-y-6">
+                
+                <!-- Porn Toggle -->
+                <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-dark-900 rounded-xl cursor-pointer" onclick="toggleCheckbox('check-porn')">
+                    <span class="font-medium">Did you view porn today?</span>
+                    <div id="check-porn" class="w-6 h-6 rounded border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center transition-colors">
+                        <i class="ph-bold ph-check text-white opacity-0 transform scale-50 transition-all"></i>
+                    </div>
+                </div>
+
+                <!-- Relapse Details (Hidden by default) -->
+                <div id="relapse-details" class="hidden space-y-4 pl-2 border-l-2 border-rose-200 dark:border-rose-900 ml-2">
+                    <p class="text-xs font-bold text-rose-500 uppercase tracking-wide">Relapse Analysis</p>
+                    <select id="relapse-trigger" class="w-full bg-slate-50 dark:bg-dark-900 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500">
+                        <option value="">What triggered it?</option>
+                        <option value="Stress">Stress / Anxiety</option>
+                        <option value="Boredom">Boredom</option>
+                        <option value="Insomnia">Can't Sleep</option>
+                        <option value="Social">Social Media</option>
+                        <option value="Loneliness">Loneliness</option>
+                    </select>
+                </div>
+
+                <!-- Masturbation Toggle -->
+                <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-dark-900 rounded-xl cursor-pointer" onclick="toggleCheckbox('check-mo')">
+                    <span class="font-medium">Masturbation?</span>
+                    <div id="check-mo" class="w-6 h-6 rounded border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center transition-colors">
+                        <i class="ph-bold ph-check text-white opacity-0 transform scale-50 transition-all"></i>
+                    </div>
+                </div>
+
+                <!-- Urge Intensity -->
+                <div class="space-y-3">
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wide">Urge Intensity</label>
+                    <div class="flex gap-2">
+                        <button onclick="setUrgeLevel('low')" class="urge-btn flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold transition-all hover:bg-slate-50 dark:hover:bg-dark-900" data-level="low">Low</button>
+                        <button onclick="setUrgeLevel('medium')" class="urge-btn flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold transition-all hover:bg-slate-50 dark:hover:bg-dark-900" data-level="medium">Med</button>
+                        <button onclick="setUrgeLevel('high')" class="urge-btn flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold transition-all hover:bg-slate-50 dark:hover:bg-dark-900" data-level="high">High</button>
+                    </div>
+                </div>
+
+                <button onclick="saveDailyLog()" class="w-full bg-brand-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-brand-200 dark:shadow-none active:scale-95 transition-transform mt-4">Save Entry</button>
+            </div>
+        </div>
+
+        <!-- 3. URGE / EMERGENCY -->
+        <div id="view-urge" class="tab-content">
+            <div id="urge-menu" class="space-y-6">
+                <!-- SOS Button -->
+                <button onclick="startEmergency()" class="w-full py-12 bg-rose-500 text-white rounded-3xl shadow-xl shadow-rose-200 dark:shadow-none flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform relative overflow-hidden group">
+                    <div class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <i class="ph-duotone ph-wind text-6xl animate-pulse"></i>
+                    <div class="text-center z-10">
+                        <span class="text-3xl font-black block">SOS / PANIC</span>
+                        <span class="text-sm font-medium opacity-90">Start Breathing Exercise</span>
+                    </div>
+                </button>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="showUrgeForm()" class="p-6 bg-white dark:bg-dark-800 rounded-2xl border-2 border-slate-100 dark:border-slate-700 flex flex-col items-center gap-2 active:scale-95 transition-transform">
+                        <i class="ph-fill ph-pencil-simple text-amber-500 text-3xl"></i>
+                        <span class="font-semibold text-sm">Log Urge</span>
+                    </button>
+                    <a href="https://www.reddit.com/r/NoFap/" target="_blank" class="p-6 bg-white dark:bg-dark-800 rounded-2xl border-2 border-slate-100 dark:border-slate-700 flex flex-col items-center gap-2 active:scale-95 transition-transform">
+                        <i class="ph-fill ph-users-three text-blue-500 text-3xl"></i>
+                        <span class="font-semibold text-sm">Community</span>
+                    </a>
+                </div>
+
+                <!-- Recent Urges List -->
+                <div class="mt-4">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">Recent Struggles</h3>
+                    <div id="urges-list" class="space-y-3">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Log Urge Form (Hidden Initially) -->
+            <div id="urge-form" class="hidden bg-white dark:bg-dark-800 rounded-2xl p-6 shadow-sm space-y-4">
+                <h3 class="font-bold text-lg">Log Details</h3>
+                <div>
+                    <label class="text-xs text-slate-400 font-bold uppercase">Trigger</label>
+                    <div class="flex flex-wrap gap-2 mt-2" id="trigger-tags">
+                        <!-- Generated by JS -->
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 font-bold uppercase">Action Taken</label>
+                    <div class="flex flex-wrap gap-2 mt-2" id="action-tags">
+                        <!-- Generated by JS -->
+                    </div>
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button onclick="hideUrgeForm()" class="flex-1 py-3 text-slate-500 font-medium">Cancel</button>
+                    <button onclick="saveUrge()" class="flex-1 py-3 bg-brand-600 text-white rounded-xl font-bold shadow-lg shadow-brand-200 dark:shadow-none">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. CALENDAR -->
+        <div id="view-calendar" class="tab-content">
+            <div class="bg-white dark:bg-dark-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 id="calendar-month" class="text-lg font-bold">Month Year</h2>
+                    <div class="flex gap-1">
+                        <button onclick="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-dark-900 text-slate-500"><i class="ph-bold ph-caret-left"></i></button>
+                        <button onclick="changeMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-dark-900 text-slate-500"><i class="ph-bold ph-caret-right"></i></button>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-7 gap-2 text-center mb-2">
+                    <div class="text-[10px] font-bold text-slate-400">S</div>
+                    <div class="text-[10px] font-bold text-slate-400">M</div>
+                    <div class="text-[10px] font-bold text-slate-400">T</div>
+                    <div class="text-[10px] font-bold text-slate-400">W</div>
+                    <div class="text-[10px] font-bold text-slate-400">T</div>
+                    <div class="text-[10px] font-bold text-slate-400">F</div>
+                    <div class="text-[10px] font-bold text-slate-400">S</div>
+                </div>
+                <div id="calendar-grid" class="grid grid-cols-7 gap-2">
+                    <!-- JS Generated -->
+                </div>
+
+                <div class="flex justify-center gap-4 mt-6 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                    <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-brand-500"></span> Clean</div>
+                    <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500"></span> Relapse</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. TASKS -->
+        <div id="view-tasks" class="tab-content">
+            <div class="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-6 text-white shadow-lg mb-6">
+                <div class="flex justify-between items-end mb-2">
+                   <span class="font-bold text-lg">Daily Progress</span>
+                   <span id="task-percent" class="text-3xl font-black">0%</span>
+                </div>
+                <div class="w-full bg-black/20 rounded-full h-2">
+                   <div id="task-bar" class="bg-white rounded-full h-2 transition-all duration-500" style="width: 0%"></div>
+                </div>
+             </div>
+             
+             <div id="tasks-list" class="space-y-3">
+                 <!-- Generated by JS -->
+             </div>
+        </div>
+
+        <!-- 6. SETTINGS -->
+        <div id="view-settings" class="tab-content">
+            <div class="bg-white dark:bg-dark-800 rounded-2xl p-2 shadow-sm border border-slate-100 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-700">
+                <div class="p-4 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <i class="ph-duotone ph-moon text-xl text-slate-500"></i>
+                        <span class="font-medium">Dark Mode</span>
+                    </div>
+                    <button onclick="toggleDarkMode()" id="btn-darkmode" class="w-12 h-6 bg-slate-200 rounded-full relative transition-colors">
+                        <div class="w-4 h-4 bg-white rounded-full absolute top-1 left-1 transition-all shadow-sm"></div>
+                    </button>
+                </div>
+                <button onclick="exportData()" class="w-full p-4 flex items-center gap-3 text-left hover:bg-slate-50 dark:hover:bg-dark-900 transition-colors">
+                    <i class="ph-duotone ph-download-simple text-xl text-slate-500"></i>
+                    <span class="font-medium">Export Data (JSON)</span>
+                </button>
+                <button onclick="resetApp()" class="w-full p-4 flex items-center gap-3 text-left text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/10 transition-colors rounded-b-xl">
+                    <i class="ph-duotone ph-trash text-xl"></i>
+                    <span class="font-medium">Reset All Progress</span>
+                </button>
+            </div>
+            <p class="text-center text-xs text-slate-400 mt-6">Version 2.0 • Offline Only</p>
+        </div>
+
+    </div> <!-- END APP -->
+
+    <!-- EMERGENCY OVERLAY -->
+    <div id="emergency-overlay" class="fixed inset-0 bg-dark-950 z-50 hidden flex-col items-center justify-center text-white p-6 opacity-0 transition-opacity duration-500">
+        <button onclick="stopEmergency()" class="absolute top-6 right-6 p-2 bg-white/10 rounded-full hover:bg-white/20">
+            <i class="ph-bold ph-x text-xl"></i>
+        </button>
+        
+        <h2 class="text-3xl font-bold mb-2">Breathe</h2>
+        <p class="text-slate-400 mb-12">This urge will pass.</p>
+        
+        <div class="circle-container">
+            <div class="breath-circle bg-brand-500 w-full h-full"></div>
+            <div class="breath-circle bg-brand-400 w-4/5 h-4/5"></div>
+            <div class="breath-circle bg-brand-300 w-3/5 h-3/5"></div>
+            <div class="absolute text-2xl font-bold tracking-widest text-brand-50" id="breath-text">INHALE</div>
+        </div>
+
+        <button onclick="stopEmergency()" class="mt-16 py-3 px-8 bg-white/10 rounded-xl font-semibold border border-white/10 hover:bg-white/20 transition-colors">
+            I'm Feeling Better
+        </button>
+    </div>
+
+    <!-- FLOATING ACTION BUTTON -->
+    <button onclick="switchTab('checkin')" class="fixed bottom-24 right-5 bg-dark-900 dark:bg-brand-600 text-white shadow-xl shadow-brand-900/20 rounded-full px-5 py-3 flex items-center gap-2 font-bold z-40 active:scale-95 transition-transform">
+        <i class="ph-bold ph-pencil-simple"></i> Check In
+    </button>
+
+    <!-- BOTTOM NAV -->
+    <nav class="fixed bottom-0 left-0 w-full bg-white/90 dark:bg-dark-950/90 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 pb-safe z-40">
+        <div class="flex justify-around items-center max-w-md mx-auto p-2">
+            <button onclick="switchTab('dashboard')" class="nav-btn p-2 flex flex-col items-center gap-1 text-slate-400 active" data-target="dashboard">
+                <i class="ph-fill ph-house text-2xl"></i>
+                <span class="text-[10px] font-bold">Home</span>
+            </button>
+            <button onclick="switchTab('calendar')" class="nav-btn p-2 flex flex-col items-center gap-1 text-slate-400" data-target="calendar">
+                <i class="ph-fill ph-calendar text-2xl"></i>
+                <span class="text-[10px] font-bold">Log</span>
+            </button>
+            <button onclick="switchTab('urge')" class="nav-btn -mt-8" data-target="urge">
+                <div class="bg-brand-600 text-white p-4 rounded-full shadow-lg shadow-brand-500/30 transform transition-transform hover:scale-110 active:scale-95 ring-4 ring-slate-50 dark:ring-dark-950">
+                    <i class="ph-fill ph-lightning text-2xl"></i>
+                </div>
+            </button>
+            <button onclick="switchTab('tasks')" class="nav-btn p-2 flex flex-col items-center gap-1 text-slate-400" data-target="tasks">
+                <i class="ph-fill ph-check-circle text-2xl"></i>
+                <span class="text-[10px] font-bold">Habits</span>
+            </button>
+            <button onclick="switchTab('settings')" class="nav-btn p-2 flex flex-col items-center gap-1 text-slate-400" data-target="settings">
+                <i class="ph-fill ph-gear text-2xl"></i>
+                <span class="text-[10px] font-bold">Settings</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // --- CONSTANTS & STATE ---
+        const STORAGE_KEY = 'reset_tracker_v2';
+        const QUOTES = [
+            "Success is the sum of small efforts.",
+            "Don't count the days, make the days count.",
+            "Your future self is watching you right now.",
+            "Discipline is choosing what you want most.",
+            "Recovery is a marathon, not a sprint."
+        ];
+        
+        let appData = {
+            logs: {}, // 'YYYY-MM-DD': { porn: bool, mo: bool, urge: 'low', tasks: [] }
+            urges: [],
+            settings: { darkMode: false, startDate: new Date().toISOString() }
+        };
+
+        let tempCheckin = { porn: false, mo: false, urge: null };
+        let urgeForm = { trigger: null, action: null };
+        let currentMonthView = new Date();
+        let emergencyInterval;
+
+        // --- INIT ---
+        window.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            renderDashboard();
+            setupCalendar();
+            document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+            document.getElementById('quote-text').textContent = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+            
+            // Checkin Logic
+            setupUrgeTags();
+        });
+
+        // --- CORE FUNCTIONS ---
+
+        function loadData() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                appData = JSON.parse(saved);
+                if (appData.settings.darkMode) document.documentElement.classList.add('dark');
+                updateDarkModeBtn();
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+            renderDashboard(); // Update stats whenever data saves
+        }
+
+        function getTodayStr() {
+            return new Date().toISOString().split('T')[0];
+        }
+
+        // --- DASHBOARD RENDER ---
+        function renderDashboard() {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            // Calculate Streak
+            const logs = Object.entries(appData.logs).sort((a,b) => new Date(b[0]) - new Date(a[0]));
+            let streak = 0;
+            let lastRelapse = logs.find(l => l[1].porn);
+            
+            if (lastRelapse) {
+                const relapseDate = new Date(lastRelapse[0]);
+                const diff = Math.abs(today - relapseDate);
+                streak = Math.ceil(diff / (1000 * 60 * 60 * 24)) - 1; // Subtract relapse day
+                if(streak < 0) streak = 0;
+            } else {
+                const start = new Date(appData.settings.startDate);
+                const diff = Math.abs(today - start);
+                streak = Math.floor(diff / (1000 * 60 * 60 * 24));
+            }
+
+            // Animate Number
+            const counterEl = document.getElementById('streak-count');
+            gsap.to(counterEl, { innerText: streak, duration: 1, snap: "innerText" });
+
+            // Update Progress Ring (Max 90 days for full circle)
+            const ring = document.getElementById('progress-ring');
+            const circumference = 2 * Math.PI * 120; // r=120
+            const maxDays = 90; 
+            const offset = circumference - ((streak % maxDays) / maxDays) * circumference;
+            ring.style.strokeDashoffset = offset;
+
+            // Stats
+            const cleanDays = Object.values(appData.logs).filter(l => !l.porn).length;
+            document.getElementById('total-clean').innerText = cleanDays;
+            document.getElementById('total-urges').innerText = appData.urges.length;
+        }
+
+        // --- NAVIGATION ---
+        function switchTab(tabId) {
+            // Hide all
+            document.querySelectorAll('.tab-content').forEach(el => {
+                gsap.to(el, { opacity: 0, duration: 0.2, onComplete: () => el.classList.remove('active') });
+            });
+            
+            // Show target
+            const target = document.getElementById(`view-${tabId}`);
+            setTimeout(() => {
+                target.classList.add('active');
+                gsap.fromTo(target, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.3 });
+            }, 200);
+
+            // Update Nav Icons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                if(btn.dataset.target === tabId) {
+                    btn.classList.add('text-brand-600', 'dark:text-brand-500');
+                    btn.classList.remove('text-slate-400');
+                } else {
+                    btn.classList.remove('text-brand-600', 'dark:text-brand-500');
+                    btn.classList.add('text-slate-400');
+                }
+            });
+
+            // Specific Render Calls
+            document.getElementById('page-title').innerText = tabId.charAt(0).toUpperCase() + tabId.slice(1);
+            if (tabId === 'calendar') renderCalendar();
+            if (tabId === 'tasks') renderTasks();
+            if (tabId === 'urge') renderUrgeList();
+        }
+
+        // --- CHECK-IN LOGIC ---
+        function toggleCheckbox(id) {
+            const el = document.getElementById(id);
+            const icon = el.querySelector('i');
+            const isChecked = el.classList.contains('bg-brand-500');
+
+            if (isChecked) {
+                // Uncheck
+                el.classList.remove('bg-brand-500', 'border-brand-500');
+                el.classList.add('border-slate-300', 'dark:border-slate-600');
+                icon.classList.add('opacity-0', 'scale-50');
+                if(id === 'check-porn') {
+                    tempCheckin.porn = false;
+                    document.getElementById('relapse-details').classList.add('hidden');
+                }
+                if(id === 'check-mo') tempCheckin.mo = false;
+            } else {
+                // Check
+                el.classList.remove('border-slate-300', 'dark:border-slate-600');
+                el.classList.add('bg-brand-500', 'border-brand-500');
+                icon.classList.remove('opacity-0', 'scale-50');
+                
+                // Specific logic
+                if(id === 'check-porn') {
+                    tempCheckin.porn = true;
+                    // Change style for relapse (red)
+                    el.classList.remove('bg-brand-500', 'border-brand-500');
+                    el.classList.add('bg-rose-500', 'border-rose-500');
+                    document.getElementById('relapse-details').classList.remove('hidden');
+                    gsap.from('#relapse-details', { height: 0, opacity: 0, duration: 0.3 });
+                }
+                if(id === 'check-mo') tempCheckin.mo = true;
+            }
+        }
+
+        function setUrgeLevel(level) {
+            tempCheckin.urge = level;
+            document.querySelectorAll('.urge-btn').forEach(btn => {
+                if(btn.dataset.level === level) {
+                    btn.classList.add('bg-slate-800', 'text-white', 'dark:bg-slate-200', 'dark:text-slate-900');
+                } else {
+                    btn.classList.remove('bg-slate-800', 'text-white', 'dark:bg-slate-200', 'dark:text-slate-900');
+                }
+            });
+        }
+
+        function saveDailyLog() {
+            const date = getTodayStr();
+            const existing = appData.logs[date] || {};
+            
+            appData.logs[date] = {
+                ...existing,
+                porn: tempCheckin.porn,
+                mo: tempCheckin.mo,
+                urge: tempCheckin.urge,
+                relapseTrigger: tempCheckin.porn ? document.getElementById('relapse-trigger').value : null
+            };
+            
+            saveData();
+            
+            // Feedback Animation
+            const btn = document.querySelector('#view-checkin button.bg-brand-600');
+            const originalText = btn.innerText;
+            btn.innerText = "Saved!";
+            btn.classList.add('bg-slate-800');
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.classList.remove('bg-slate-800');
+                switchTab('dashboard');
+            }, 800);
+        }
+
+        // --- CALENDAR LOGIC ---
+        function setupCalendar() {
+            renderCalendar();
+        }
+
+        function changeMonth(delta) {
+            currentMonthView.setMonth(currentMonthView.getMonth() + delta);
+            renderCalendar();
+        }
+
+        function renderCalendar() {
+            const year = currentMonthView.getFullYear();
+            const month = currentMonthView.getMonth();
+            const monthName = currentMonthView.toLocaleString('default', { month: 'long', year: 'numeric' });
+            document.getElementById('calendar-month').innerText = monthName;
+
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = '';
+
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const firstDay = new Date(year, month, 1).getDay();
+
+            // Padding
+            for(let i=0; i<firstDay; i++) {
+                grid.appendChild(document.createElement('div'));
+            }
+
+            // Days
+            for(let d=1; d<=daysInMonth; d++) {
+                const el = document.createElement('div');
+                el.className = "aspect-square rounded-lg flex items-center justify-center text-sm font-medium bg-slate-50 dark:bg-dark-900 text-slate-400";
+                el.innerText = d;
+
+                // Check Data
+                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const log = appData.logs[dateStr];
+                
+                if (log) {
+                    if (log.porn) {
+                        el.classList.add('bg-rose-500', 'text-white');
+                        el.classList.remove('bg-slate-50', 'text-slate-400');
+                    } else {
+                        el.classList.add('bg-brand-500', 'text-white');
+                        el.classList.remove('bg-slate-50', 'text-slate-400');
+                    }
+                }
+
+                // Highlight Today
+                if(dateStr === getTodayStr()) {
+                    el.classList.add('ring-2', 'ring-blue-500', 'ring-offset-2', 'dark:ring-offset-dark-800');
+                }
+
+                grid.appendChild(el);
+            }
+        }
+
+        // --- TASKS LOGIC ---
+        const DAILY_TASKS = [
+            { id: 't1', label: 'Morning Workout', icon: 'ph-barbell' },
+            { id: 't2', label: 'Cold Shower', icon: 'ph-drop' },
+            { id: 't3', label: 'Read 10 Pages', icon: 'ph-book-open' },
+            { id: 't4', label: 'No Phone in Bed', icon: 'ph-moon' }
+        ];
+
+        function renderTasks() {
+            const container = document.getElementById('tasks-list');
+            container.innerHTML = '';
+            
+            const date = getTodayStr();
+            const todayLog = appData.logs[date] || {};
+            const completedTasks = todayLog.tasks || [];
+
+            // Update Progress Bar
+            const percent = Math.round((completedTasks.length / DAILY_TASKS.length) * 100);
+            document.getElementById('task-percent').innerText = `${percent}%`;
+            document.getElementById('task-bar').style.width = `${percent}%`;
+
+            DAILY_TASKS.forEach(task => {
+                const isDone = completedTasks.includes(task.id);
+                
+                const btn = document.createElement('button');
+                btn.className = `w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${isDone ? 'bg-blue-50 border-blue-500 dark:bg-blue-900/20' : 'bg-white border-slate-100 dark:bg-dark-800 dark:border-slate-700'}`;
+                btn.onclick = () => toggleTask(task.id);
+                
+                btn.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="p-2 rounded-full ${isDone ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-400 dark:bg-dark-900'}">
+                            <i class="ph-fill ${task.icon}"></i>
+                        </div>
+                        <span class="font-medium ${isDone ? 'text-slate-900 dark:text-white' : 'text-slate-500'}">${task.label}</span>
+                    </div>
+                    <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center ${isDone ? 'bg-blue-500 border-blue-500' : 'border-slate-200'}">
+                        ${isDone ? '<i class="ph-bold ph-check text-white text-xs"></i>' : ''}
+                    </div>
+                `;
+                container.appendChild(btn);
+            });
+        }
+
+        function toggleTask(taskId) {
+            const date = getTodayStr();
+            const log = appData.logs[date] || {};
+            let tasks = log.tasks || [];
+            
+            if (tasks.includes(taskId)) {
+                tasks = tasks.filter(t => t !== taskId);
+            } else {
+                tasks.push(taskId);
+            }
+            
+            appData.logs[date] = { ...log, tasks: tasks };
+            saveData();
+            renderTasks();
+        }
+
+        // --- URGE LOGIC ---
+        function setupUrgeTags() {
+            const triggers = ['Bored', 'Stressed', 'Lonely', 'Tired', 'Social Media'];
+            const actions = ['Walk', 'Pushups', 'Cold Water', 'Called Friend', 'Meditated'];
+            
+            const tContainer = document.getElementById('trigger-tags');
+            const aContainer = document.getElementById('action-tags');
+            
+            triggers.forEach(t => {
+                const btn = document.createElement('button');
+                btn.className = "px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold uppercase transition-colors";
+                btn.innerText = t;
+                btn.onclick = () => {
+                    urgeForm.trigger = t;
+                    // Reset others
+                    Array.from(tContainer.children).forEach(c => c.classList.remove('bg-slate-800', 'text-white'));
+                    btn.classList.add('bg-slate-800', 'text-white');
+                };
+                tContainer.appendChild(btn);
+            });
+
+            actions.forEach(a => {
+                const btn = document.createElement('button');
+                btn.className = "px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold uppercase transition-colors";
+                btn.innerText = a;
+                btn.onclick = () => {
+                    urgeForm.action = a;
+                    // Reset others
+                    Array.from(aContainer.children).forEach(c => c.classList.remove('bg-brand-600', 'text-white'));
+                    btn.classList.add('bg-brand-600', 'text-white');
+                };
+                aContainer.appendChild(btn);
+            });
+        }
+
+        function showUrgeForm() {
+            document.getElementById('urge-menu').classList.add('hidden');
+            document.getElementById('urge-form').classList.remove('hidden');
+            gsap.from('#urge-form', { opacity: 0, y: 20 });
+        }
+
+        function hideUrgeForm() {
+            document.getElementById('urge-form').classList.add('hidden');
+            document.getElementById('urge-menu').classList.remove('hidden');
+        }
+
+        function saveUrge() {
+            if(!urgeForm.trigger) return alert("Select a trigger");
+            
+            appData.urges.unshift({
+                date: new Date().toISOString(),
+                trigger: urgeForm.trigger,
+                action: urgeForm.action || 'Ignored'
+            });
+            saveData();
+            hideUrgeForm();
+            renderUrgeList();
+        }
+
+        function renderUrgeList() {
+            const list = document.getElementById('urges-list');
+            list.innerHTML = '';
+            
+            appData.urges.slice(0, 3).forEach(u => {
+                const el = document.createElement('div');
+                el.className = "text-sm bg-white dark:bg-dark-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex justify-between items-center";
+                el.innerHTML = `
+                    <div class="flex flex-col">
+                        <span class="font-bold">${u.trigger}</span>
+                        <span class="text-xs text-slate-500">Action: ${u.action}</span>
+                    </div>
+                    <span class="text-[10px] bg-slate-100 dark:bg-dark-900 px-2 py-1 rounded font-mono text-slate-500">${new Date(u.date).toLocaleDateString()}</span>
+                `;
+                list.appendChild(el);
+            });
+        }
+
+        // --- EMERGENCY MODE (GSAP) ---
+        function startEmergency() {
+            const overlay = document.getElementById('emergency-overlay');
+            overlay.classList.remove('hidden');
+            gsap.to(overlay, { opacity: 1, duration: 0.5 });
+
+            // Breathing Animation using GSAP Timeline
+            const tl = gsap.timeline({ repeat: -1 });
+            const text = document.getElementById('breath-text');
+            const circles = document.querySelectorAll('.breath-circle');
+
+            // Inhale (4s)
+            tl.to(circles, { scale: 1.2, duration: 4, ease: "power1.inOut", stagger: 0.1 })
+              .call(() => text.innerText = "HOLD")
+            // Hold (4s)
+              .to({}, { duration: 4 })
+              .call(() => text.innerText = "EXHALE")
+            // Exhale (4s)
+              .to(circles, { scale: 0.5, duration: 4, ease: "power1.inOut", stagger: 0.1 })
+              .call(() => text.innerText = "INHALE");
+
+            emergencyInterval = tl;
+        }
+
+        function stopEmergency() {
+            const overlay = document.getElementById('emergency-overlay');
+            gsap.to(overlay, { opacity: 0, duration: 0.5, onComplete: () => overlay.classList.add('hidden') });
+            if(emergencyInterval) emergencyInterval.kill();
+        }
+
+        // --- SETTINGS LOGIC ---
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            const btn = document.querySelector('#btn-darkmode div');
+            
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                appData.settings.darkMode = false;
+                btn.style.transform = 'translateX(0)';
+                btn.parentElement.classList.remove('bg-brand-500');
+                btn.parentElement.classList.add('bg-slate-200');
+            } else {
+                html.classList.add('dark');
+                appData.settings.darkMode = true;
+                btn.style.transform = 'translateX(24px)';
+                btn.parentElement.classList.remove('bg-slate-200');
+                btn.parentElement.classList.add('bg-brand-500');
+            }
+            saveData();
+        }
+
+        function updateDarkModeBtn() {
+            const btn = document.querySelector('#btn-darkmode div');
+            if (appData.settings.darkMode) {
+                btn.style.transform = 'translateX(24px)';
+                btn.parentElement.classList.remove('bg-slate-200');
+                btn.parentElement.classList.add('bg-brand-500');
+            }
+        }
+
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "reset_tracker_backup.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function resetApp() {
+            if(confirm("Are you sure? This deletes everything.")) {
+                localStorage.removeItem(STORAGE_KEY);
+                location.reload();
+            }
+        }
+
+    </script>
+    <script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/service-worker.js");
+  });
+}
+</script>
+
+</body>
+</html>
